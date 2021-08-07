@@ -2,41 +2,65 @@ package main
 
 import (
     "fmt"
-    "time"
+    "log"
+    "os"
+    "os/signal"
     "sync"
+    "syscall"
+    "time"
 )
 
 
-func periodic_task(wg *sync.WaitGroup, interval int) {
-    defer wg.Done()
-    for {
-        fmt.Println("Starting task with interval: ", interval)
-        time.Sleep(time.Duration(interval) * time.Second)
-        fmt.Println("Finishing task with interval: ", interval)
-    }
-}
+var termChan = make(chan os.Signal)
+var goShutChan = make(chan bool)
+var wg sync.WaitGroup
 
 
-func task(wg *sync.WaitGroup) {
-    defer wg.Done()
-
-    fmt.Println("Starting task")
-    time.Sleep(2 * time.Second)
-    fmt.Println("Finishing task")
+func createPeriodicTask(interval time.Duration, since time.Time, f func()) {
+    wg.Add(1)
+    // AfterFunc func() already is a goroutine
+    time.AfterFunc(time.Until(since), func(){
+        ticker := time.NewTicker(interval)
+        for {
+            select {
+            case <-ticker.C:
+                fmt.Println("Executing task...")
+                f()
+                fmt.Println("Executing task finished")
+            case _, more := <-goShutChan:
+                if !more {
+                    ticker.Stop()
+                    wg.Done()
+                    log.Println(interval, " task closed")
+                    return
+                }
+            }
+        }
+    })
 }
 
 
 func main() {
-    var wg sync.WaitGroup
+    signal.Notify(termChan, syscall.SIGTERM, syscall.SIGINT)
+    go func() {
+       sig := <-termChan
+       log.Println(sig)
+       close(goShutChan)
+       log.Println("goShutChan closed")
+    }()
 
-    for i := 0; i <= 1000; i++ {
-        wg.Add(1)
-        go periodic_task(&wg, 5)
-    }
+    createPeriodicTask(
+        3 * time.Second,
+        time.Now(),
+        func(){time.Sleep(1 * time.Second);fmt.Println("test 1")})
+    createPeriodicTask(
+        1 * time.Second,
+        time.Now(),
+        func(){time.Sleep(2 * time.Second);fmt.Println("test 2")})
+    createPeriodicTask(
+        2 * time.Second,
+        time.Now(),
+        func(){time.Sleep(4 * time.Second);fmt.Println("test 3")})
 
-    // wg.Add(1)
-    // go periodic_task(&wg, 2)
-    // wg.Add(1)
-    // go task(&wg)
     wg.Wait()
 }
