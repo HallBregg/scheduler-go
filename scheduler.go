@@ -1,6 +1,7 @@
 package main
 
 import (
+    "encoding/json"
     "fmt"
     "log"
     "os"
@@ -8,6 +9,7 @@ import (
     "sync"
     "syscall"
     "time"
+    "net/http"
 )
 
 
@@ -37,6 +39,24 @@ func createPeriodicTask(interval time.Duration, since time.Time, f func()) {
             }
         }
     })
+}
+
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+    type StatusResponse struct {
+        Status string `json:"status"`
+    }
+    out, err := json.Marshal(StatusResponse{Status: "ok"})
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    result, err := w.Write(out)
+    if err != nil {
+        log.Println("Could not send response.", result, err)
+    }
+    return
 }
 
 
