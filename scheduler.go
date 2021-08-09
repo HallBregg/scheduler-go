@@ -10,6 +10,7 @@ import (
     "syscall"
     "time"
     "net/http"
+    "context"
 )
 
 
@@ -60,7 +61,36 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func testContextFunc(ctx context.Context, interval time.Duration) {
+    for {
+        fmt.Println("Start task")
+        time.Sleep(interval)
+        select {
+        case <- ctx.Done():
+            fmt.Println("Canceled goroutine", interval)
+            return
+        }
+    }
+}
+
 func main() {
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
+    go func() {
+        time.Sleep(5 * time.Second)
+        fmt.Println("Force cancel")
+        cancel()
+    }()
+
+    go testContextFunc(ctx, 2 * time.Second)
+    go testContextFunc(ctx, 1 * time.Second)
+    time.Sleep(5)
+    <- ctx.Done()
+}
+
+
+func main2() {
     signal.Notify(termChan, syscall.SIGTERM, syscall.SIGINT)
     go func() {
        sig := <-termChan
@@ -84,3 +114,5 @@ func main() {
 
     wg.Wait()
 }
+
+
