@@ -5,6 +5,6 @@ services:
             context: .
             target: build
         volumes:
-            - .:/src
+            - .:/go/src/scheduler
         ports:
             - 8080:8080

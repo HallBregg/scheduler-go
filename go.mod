@@ -1,3 +1,3 @@
-module norepo/scheduler
+module scheduler
 
 go 1.16

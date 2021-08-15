@@ -1,5 +1,6 @@
 FROM golang:latest AS build
-WORKDIR /src
+ENV GO111MODULE=off
+WORKDIR /go/src/scheduler
 COPY . .
 RUN go build -o /out/bapp
 
